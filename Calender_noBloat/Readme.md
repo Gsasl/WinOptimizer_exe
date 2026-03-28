@@ -3,6 +3,10 @@
 A lightning-fast, ultra-lightweight Windows taskbar calendar written entirely in pure C using the native Win32 API. 
 
 Modern operating systems have slowly replaced fast, native utilities with bloated web-wrappers and heavy UI frameworks. PerfectCalendar is a direct response to that trend. It provides a clean, dark-mode native experience without the telemetry, cloud-syncing, or background resource hogging.
+<img width="1383" height="845" alt="Screenshot 2026-03-28 220714" src="https://github.com/user-attachments/assets/9fd170eb-c510-4268-8edf-fc8650b1e28a" />
+<img width="1156" height="864" alt="Screenshot 2026-03-28 192243" src="https://github.com/user-attachments/assets/42c2861d-1f82-4985-ae3d-36ca99633306" />
+
+
 
 ## 📊 The "Anti-Bloat" Comparison
 
