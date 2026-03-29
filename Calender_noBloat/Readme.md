@@ -5,6 +5,8 @@ A lightning-fast, ultra-lightweight Windows taskbar calendar written entirely in
 Modern operating systems have slowly replaced fast, native utilities with bloated web-wrappers and heavy UI frameworks. PerfectCalendar is a direct response to that trend. It provides a clean, dark-mode native experience without the telemetry, cloud-syncing, or background resource hogging.
 <img width="1383" height="845" alt="Screenshot 2026-03-28 220714" src="https://github.com/user-attachments/assets/9fd170eb-c510-4268-8edf-fc8650b1e28a" />
 <img width="1156" height="864" alt="Screenshot 2026-03-28 192243" src="https://github.com/user-attachments/assets/42c2861d-1f82-4985-ae3d-36ca99633306" />
+<img width="367" height="172" alt="image" src="https://github.com/user-attachments/assets/1d88e30e-f5d9-4886-b355-90ca4e1dcead" />
+
 
 
 
@@ -19,8 +21,9 @@ Modern operating systems have slowly replaced fast, native utilities with bloate
 | **Launch Speed** | Noticeable delay | **Instantaneous** |
 
 ## ✨ Features
-* **Native System Tray Integration:** Runs silently in the background and pins directly to your taskbar.
-* **Dynamic Scaling:** Hover and scroll the mouse wheel to smoothly zoom/resize the UI fonts on the fly.
+* **Native System Tray Integration:** Runs silently in the background and pins directly to your taskbar. Choose to run on startuo via icon toggle [patch v 1.0.1]
+* **Right-click** the tray icon to toggle "Run on Startup" or exit the application.
+* **Dynamic Scaling:** Hover and scroll the mouse wheel to smoothly zoom/resize the UI fonts on the fly. convinient window feature as native apps.
 * **Dark Mode Native:** Uses custom `MCM_SETCOLOR` messages to override the blinding Windows 95 default calendar colors.
 * **Singleton Architecture:** Uses a `CreateMutex` lock to ensure only one instance can ever run at a time, preventing accidental duplicate background processes.
 
