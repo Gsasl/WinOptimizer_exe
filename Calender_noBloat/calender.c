@@ -71,7 +71,36 @@ void UpdateSizing(HWND hwnd) {
         SetWindowPos(hMonthCal, NULL, 10, headerHeight, winRect.right - 20, winRect.bottom - headerHeight - 10, SWP_NOZORDER);
     }
 }
+// Checks if the app is currently set to run on startup
+BOOL IsRunOnStartup() {
+    HKEY hKey;
+    LONG lRes = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_READ, &hKey);
+    if (lRes == ERROR_SUCCESS) {
+        DWORD type;
+        lRes = RegQueryValueExA(hKey, "PerfectCalendar", NULL, &type, NULL, NULL);
+        RegCloseKey(hKey);
+        return (lRes == ERROR_SUCCESS);
+    }
+    return FALSE;
+}
 
+// Toggles the registry key on or off
+void ToggleRunOnStartup() {
+    HKEY hKey;
+    LONG lRes = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE | KEY_READ, &hKey);
+    if (lRes == ERROR_SUCCESS) {
+        if (IsRunOnStartup()) {
+            // If it's on, delete the key to turn it off
+            RegDeleteValueA(hKey, "PerfectCalendar");
+        } else {
+            // If it's off, get the exact path of the .exe and add it to the registry
+            char szPath[MAX_PATH];
+            GetModuleFileNameA(NULL, szPath, MAX_PATH);
+            RegSetValueExA(hKey, "PerfectCalendar", 0, REG_SZ, (BYTE*)szPath, strlen(szPath) + 1);
+        }
+        RegCloseKey(hKey);
+    }
+}
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     
     // Safely re-inject the icon if the taskbar loads late (on boot) or crashes
@@ -122,9 +151,40 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     BringWindowToTop(hwnd);
                 }
             } else if (lParam == WM_RBUTTONUP) { 
-                int msgboxID = MessageBox(NULL, "Completely close the calendar?", "Exit", MB_ICONQUESTION | MB_YESNO);
-                if (msgboxID == IDYES) {
-                    PostQuitMessage(0);
+                // 1. Get exact mouse coordinates
+                POINT pt;
+                GetCursorPos(&pt);
+                
+                // 2. Create an empty menu
+                HMENU hMenu = CreatePopupMenu();
+                
+                // 3. Add the "Run on Startup" option with a dynamic checkmark
+                UINT uFlags = MF_STRING;
+                if (IsRunOnStartup()) {
+                    uFlags |= MF_CHECKED;
+                } else {
+                    uFlags |= MF_UNCHECKED;
+                }
+                AppendMenuA(hMenu, uFlags, 1002, "Run on Startup");
+                
+                // 4. Add a visual separator line
+                AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
+                
+                // 5. Add the Exit button
+                AppendMenuA(hMenu, MF_STRING, 1001, "Exit");
+                
+                // 6. Fix Windows bug where menu gets stuck open
+                SetForegroundWindow(hwnd); 
+                
+                // 7. Show the menu and capture the user's click
+                int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, NULL);
+                DestroyMenu(hMenu);
+                
+                // 8. Execute the command
+                if (cmd == 1001) {
+                    PostQuitMessage(0); // Exit
+                } else if (cmd == 1002) {
+                    ToggleRunOnStartup(); // Toggle Registry
                 }
             }
             return 0;
