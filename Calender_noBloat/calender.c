@@ -11,6 +11,10 @@
 #define WM_USER_TRAY (WM_USER + 1)
 #define IDI_APPICON 101 
 
+// --- REVIEW FIX 5: Cleaned up magic numbers ---
+#define UI_HEADER_PADDING 25
+#define UI_DRAG_WIDTH 250
+
 NOTIFYICONDATA nid = {0};
 HWND hMainWnd, hMonthCal, hTimeLabel, hCloseBtn, hMaxBtn;
 HFONT hFontLarge = NULL, hFontNormal = NULL;
@@ -20,11 +24,9 @@ int currentFontSize = 20;
 BOOL isMaximized = FALSE;
 RECT normalRect; 
 
-// Global message ID for the Taskbar
 UINT WM_TASKBARCREATED = 0; 
 
-// --- BUG 2 FIX: Dedicated, robust function to safely inject the icon ---
-void AddTrayIcon(HWND hwnd) {
+BOOL AddTrayIcon(HWND hwnd) {
     memset(&nid, 0, sizeof(NOTIFYICONDATA));
     nid.cbSize = sizeof(NOTIFYICONDATA);
     nid.hWnd = hwnd;
@@ -33,26 +35,34 @@ void AddTrayIcon(HWND hwnd) {
     nid.uCallbackMessage = WM_USER_TRAY;
     nid.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPICON)); 
     lstrcpyA(nid.szTip, "Modern Calendar");
-    Shell_NotifyIcon(NIM_ADD, &nid);
+    return Shell_NotifyIcon(NIM_ADD, &nid); 
 }
 
 void UpdateSizing(HWND hwnd) {
-    if (hFontLarge) DeleteObject(hFontLarge);
-    if (hFontNormal) DeleteObject(hFontNormal);
+    // --- REVIEW FIX 3: Prevent GDI Memory Leak / Flicker ---
+    // Store the old fonts temporarily
+    HFONT hOldLarge = hFontLarge;
+    HFONT hOldNormal = hFontNormal;
 
+    // Create the new fonts
     hFontLarge = CreateFont(currentFontSize + 10, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Segoe UI"));
     hFontNormal = CreateFont(currentFontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Segoe UI"));
 
+    // Apply the new fonts
     SendMessage(hTimeLabel, WM_SETFONT, (WPARAM)hFontLarge, TRUE);
     SendMessage(hCloseBtn, WM_SETFONT, (WPARAM)hFontNormal, TRUE);
     SendMessage(hMaxBtn, WM_SETFONT, (WPARAM)hFontNormal, TRUE); 
     SendMessage(hMonthCal, WM_SETFONT, (WPARAM)hFontNormal, TRUE);
 
+    // Safely delete the old fonts AFTER they are no longer in use
+    if (hOldLarge) DeleteObject(hOldLarge);
+    if (hOldNormal) DeleteObject(hOldNormal);
+
     RECT rc;
     MonthCal_GetMinReqRect(hMonthCal, &rc);
     int calW = rc.right;
     int calH = rc.bottom;
-    int headerHeight = currentFontSize + 25; 
+    int headerHeight = currentFontSize + UI_HEADER_PADDING; 
     
     int btnSize = currentFontSize + 20;
 
@@ -71,7 +81,7 @@ void UpdateSizing(HWND hwnd) {
         SetWindowPos(hMonthCal, NULL, 10, headerHeight, winRect.right - 20, winRect.bottom - headerHeight - 10, SWP_NOZORDER);
     }
 }
-// Checks if the app is currently set to run on startup
+
 BOOL IsRunOnStartup() {
     HKEY hKey;
     LONG lRes = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_READ, &hKey);
@@ -84,16 +94,13 @@ BOOL IsRunOnStartup() {
     return FALSE;
 }
 
-// Toggles the registry key on or off
 void ToggleRunOnStartup() {
     HKEY hKey;
     LONG lRes = RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE | KEY_READ, &hKey);
     if (lRes == ERROR_SUCCESS) {
         if (IsRunOnStartup()) {
-            // If it's on, delete the key to turn it off
             RegDeleteValueA(hKey, "PerfectCalendar");
         } else {
-            // If it's off, get the exact path of the .exe and add it to the registry
             char szPath[MAX_PATH];
             GetModuleFileNameA(NULL, szPath, MAX_PATH);
             RegSetValueExA(hKey, "PerfectCalendar", 0, REG_SZ, (BYTE*)szPath, strlen(szPath) + 1);
@@ -101,9 +108,9 @@ void ToggleRunOnStartup() {
         RegCloseKey(hKey);
     }
 }
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     
-    // Safely re-inject the icon if the taskbar loads late (on boot) or crashes
     if (WM_TASKBARCREATED != 0 && uMsg == WM_TASKBARCREATED) {
         AddTrayIcon(hwnd);
         return 0;
@@ -132,11 +139,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             SendMessage(hMonthCal, MCM_SETCOLOR, MCSC_TRAILINGTEXT, RGB(210, 210, 210)); 
 
             UpdateSizing(hwnd);
+            
             SetTimer(hwnd, 1, 1000, NULL);
             SendMessage(hwnd, WM_TIMER, 1, 0); 
 
-            // Initial attempt to add the tray icon
-            AddTrayIcon(hwnd);
+            if (!AddTrayIcon(hwnd)) {
+                SetTimer(hwnd, 2, 2000, NULL); 
+            }
             return 0;
         }
 
@@ -146,46 +155,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     ShowWindow(hwnd, SW_HIDE); 
                 } else {
                     ShowWindow(hwnd, SW_SHOW);
-                    // Ensure it pops to the front when you click the tray icon
                     SetForegroundWindow(hwnd);
                     BringWindowToTop(hwnd);
                 }
             } else if (lParam == WM_RBUTTONUP) { 
-                // 1. Get exact mouse coordinates
                 POINT pt;
                 GetCursorPos(&pt);
                 
-                // 2. Create an empty menu
                 HMENU hMenu = CreatePopupMenu();
                 
-                // 3. Add the "Run on Startup" option with a dynamic checkmark
                 UINT uFlags = MF_STRING;
-                if (IsRunOnStartup()) {
-                    uFlags |= MF_CHECKED;
-                } else {
-                    uFlags |= MF_UNCHECKED;
-                }
+                if (IsRunOnStartup()) uFlags |= MF_CHECKED;
+                else uFlags |= MF_UNCHECKED;
+                
                 AppendMenuA(hMenu, uFlags, 1002, "Run on Startup");
-                
-                // 4. Add a visual separator line
                 AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
-                
-                // 5. Add the Exit button
                 AppendMenuA(hMenu, MF_STRING, 1001, "Exit");
                 
-                // 6. Fix Windows bug where menu gets stuck open
                 SetForegroundWindow(hwnd); 
-                
-                // 7. Show the menu and capture the user's click
                 int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, NULL);
                 DestroyMenu(hMenu);
                 
-                // 8. Execute the command
-                if (cmd == 1001) {
-                    PostQuitMessage(0); // Exit
-                } else if (cmd == 1002) {
-                    ToggleRunOnStartup(); // Toggle Registry
-                }
+                if (cmd == 1001) PostQuitMessage(0);
+                else if (cmd == 1002) ToggleRunOnStartup();
             }
             return 0;
         }
@@ -203,11 +195,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         }
 
         case WM_TIMER: {
-            SYSTEMTIME st;
-            GetLocalTime(&st);
-            char timeStr[64];
-            GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &st, NULL, timeStr, sizeof(timeStr));
-            SetWindowTextA(hTimeLabel, timeStr);
+            if (wParam == 1) { 
+                SYSTEMTIME st;
+                GetLocalTime(&st);
+                char timeStr[64];
+                GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &st, NULL, timeStr, sizeof(timeStr));
+                SetWindowTextA(hTimeLabel, timeStr);
+            } 
+            else if (wParam == 2) { 
+                if (AddTrayIcon(hwnd)) KillTimer(hwnd, 2); 
+            }
             return 0;
         }
 
@@ -224,11 +221,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             GetClientRect(hwnd, &rc);
             FillRect(hdc, &rc, hbgBrush);
             return 1;
-        }
-
-        case WM_NCLBUTTONDBLCLK: {
-            SendMessage(hwnd, WM_COMMAND, 2, 0); 
-            return 0;
         }
 
         case WM_COMMAND: {
@@ -260,12 +252,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 pt.x = GET_X_LPARAM(lParam);
                 pt.y = GET_Y_LPARAM(lParam);
                 ScreenToClient(hwnd, &pt);
-                if (pt.y < (currentFontSize + 25) && pt.x < 250) return HTCAPTION; 
+                // Utilizes the new defined constants
+                if (pt.y < (currentFontSize + UI_HEADER_PADDING) && pt.x < UI_DRAG_WIDTH) return HTCAPTION; 
             }
             return hit;
         }
 
         case WM_DESTROY: {
+            // --- REVIEW FIX 7: Destroy the icon handle memory leak ---
+            if (nid.hIcon) DestroyIcon(nid.hIcon);
             Shell_NotifyIcon(NIM_DELETE, &nid); 
             DeleteObject(hbgBrush);
             if (hFontLarge) DeleteObject(hFontLarge);
@@ -279,7 +274,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow) {
     
-    // Register this listener immediately before the window is even created
+    // --- REVIEW FIX 6: Adds explicit DPI awareness to fix 4K monitor blurriness ---
+    SetProcessDPIAware();
+
     WM_TASKBARCREATED = RegisterWindowMessageA("TaskbarCreated");
 
     HANDLE hMutex = CreateMutex(NULL, TRUE, "ModernCalendarMutex");
@@ -304,7 +301,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine,
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
     
-    // --- BUG 1 FIX: Removed WS_EX_TOPMOST. It is now a normal tool window. ---
     hMainWnd = CreateWindowEx(
         WS_EX_TOOLWINDOW,
         CLASS_NAME, "Taskbar Calendar",
