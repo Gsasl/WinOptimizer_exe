@@ -15,6 +15,8 @@
 
 <img width="1383" height="845" alt="Screenshot 2026-03-28 220714" src="https://github.com/user-attachments/assets/9fd170eb-c510-4268-8edf-fc8650b1e28a" />
 <img width="1156" height="864" alt="Screenshot 2026-03-28 192243" src="https://github.com/user-attachments/assets/42c2861d-1f82-4985-ae3d-36ca99633306" />
+<img width="367" height="172" alt="image" src="https://github.com/user-attachments/assets/1d88e30e-f5d9-4886-b355-90ca4e1dcead" />
+<img width="1137" height="778" alt="image" src="https://github.com/user-attachments/assets/545c0c35-4158-46bb-ab6b-96f0eeaba0df" />
 
 ---
 
@@ -23,6 +25,8 @@
 ```powershell
 winget install Gsasl.PerfectCalendar
 ```
+<img width="1482" height="738" alt="image" src="https://github.com/user-attachments/assets/76fb69d2-c25c-429a-b461-753a92e2faf1" />
+
 
 Or grab `PerfectCalendar.exe` from the [Releases](../../releases) tab and run it. That's it — no installer wizard, no UAC prompt, no `C:\Program Files` folder.
 
