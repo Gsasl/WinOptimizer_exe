@@ -4,7 +4,7 @@
 ![Language](https://img.shields.io/badge/Language-Pure%20C-orange)
 ![Size](https://img.shields.io/badge/Size-~227%20KB-success)
 ![Winget](https://img.shields.io/badge/Winget-Official_Package-green)
-<img width="1482" height="738" alt="image" src="https://github.com/user-attachments/assets/76fb69d2-c25c-429a-b461-753a92e2faf1" />
+
 
 
 A lightning-fast, ultra-lightweight Windows taskbar calendar written entirely in pure C using the native Win32 API. 
@@ -24,7 +24,7 @@ PerfectCalendar is officially approved and distributed through Microsoft's Winge
 ```bash
 winget install Gsasl.PerfectCalendar
 ```
-
+<img width="1482" height="738" alt="image" src="https://github.com/user-attachments/assets/76fb69d2-c25c-429a-b461-753a92e2faf1" />
 ## 📊 The "Anti-Bloat" Comparison
 
 | Metric | Modern Windows UI Apps | PerfectCalendar (Pure C) |
